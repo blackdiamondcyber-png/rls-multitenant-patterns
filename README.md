@@ -11,8 +11,8 @@ the reusable core of that work with the business specifics stripped out.
 
 ## The problem
 
-Field sales apps have an awkward access shape. Reps need broad read access —
-you cannot prospect a territory you cannot see — but narrow write access. The
+Field sales apps have an awkward access shape. Reps need broad read access,
+because you cannot prospect a territory you cannot see, but narrow write access. The
 naive approaches both fail:
 
 **Filtering in the application layer.** One forgotten `.eq('assigned_to', userId)`
@@ -39,7 +39,7 @@ The key move is splitting `USING` from `WITH CHECK`. `USING` decides which
 existing rows you can see and touch. `WITH CHECK` decides what a row is allowed
 to look like *after* you write it. Reps get a permissive `USING` and a strict
 `WITH CHECK`, which is what stops a rep from reassigning an account to
-themselves — the row would fail the check on its way in.
+themselves. The row would fail the check on its way in.
 
 ## Files
 
