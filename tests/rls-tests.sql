@@ -14,6 +14,11 @@ begin
   insert into branches (name) values ('North') returning id into b1;
   insert into branches (name) values ('South') returning id into b2;
 
+  -- Supabase owns auth.users and profiles.id is a foreign key into it, so
+  -- the fixture users have to exist there before a profile can reference them.
+  insert into auth.users (id) values (rep1), (rep2), (mgr1)
+    on conflict (id) do nothing;
+
   insert into profiles (id, full_name, role, branch_id) values
     (rep1, 'Rep One',  'rep',     b1),
     (rep2, 'Rep Two',  'rep',     b1),
@@ -22,6 +27,12 @@ begin
   insert into accounts (name, branch_id, assigned_to) values ('Acct A', b1, rep1) returning id into acct_r1;
   insert into accounts (name, branch_id, assigned_to) values ('Acct B', b1, rep2) returning id into acct_r2;
   insert into accounts (name, branch_id, assigned_to) values ('Acct C', b2, null);
+
+  -- Everything above ran as the table owner, who bypasses row level security
+  -- so the fixtures can be seeded. Everything below runs as a signed-in user,
+  -- which is the only condition under which the policies apply at all. Without
+  -- this line every assertion below passes for the wrong reason.
+  perform set_config('role', 'authenticated', true);
 
   -- Rep One sees both accounts in their branch, not the other branch's.
   perform set_config('request.jwt.claims', json_build_object('sub', rep1)::text, true);

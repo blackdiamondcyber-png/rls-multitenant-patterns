@@ -1,5 +1,7 @@
 # Row-Level Security Patterns for Multi-Tenant Field Sales Apps
 
+[![tests](https://github.com/blackdiamondcyber-png/rls-multitenant-patterns/actions/workflows/ci.yml/badge.svg)](https://github.com/blackdiamondcyber-png/rls-multitenant-patterns/actions/workflows/ci.yml)
+
 Postgres row-level security policies for the problem I kept hitting: a shared
 database where every field rep should see the whole map but only act on the
 accounts assigned to them, managers should see their branch, and nobody should
@@ -78,7 +80,8 @@ which reading the policy file will not.
 
 ## Running it
 
-Any Postgres 14+ instance, or Supabase.
+On Supabase, which already provides the `auth` schema, `auth.uid()` and the
+`anon` and `authenticated` roles:
 
 ```bash
 psql "$DATABASE_URL" -f sql/01-schema.sql
@@ -87,7 +90,17 @@ psql "$DATABASE_URL" -f sql/03-policies.sql
 psql "$DATABASE_URL" -f tests/rls-tests.sql
 ```
 
-The test file raises an exception on the first failed assertion.
+On a plain Postgres 14+, run `sql/00-local-shim.sql` first. It creates those
+Supabase objects and the default grants that go with them, and nothing else, so
+the helper and policy files are the same text in both cases.
+
+The test file raises an exception on the first failed assertion. CI runs the
+shim and then this sequence against `postgres:16` on every push.
+
+One detail worth copying if you write your own: the test switches to the
+`authenticated` role before it asserts anything. The table owner bypasses row
+level security, so a suite that seeds and asserts as the same role will pass no
+matter what the policies say.
 
 ## License
 

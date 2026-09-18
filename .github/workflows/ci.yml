@@ -1,0 +1,43 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  rls:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      # ON_ERROR_STOP is the whole point: without it psql prints the raised
+      # exception and still exits 0, so a failing assertion would pass CI.
+      PGPASSWORD: postgres
+      PSQL: psql -v ON_ERROR_STOP=1 -X -q -h localhost -U postgres -d postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stand in for the Supabase auth objects
+        run: $PSQL -f sql/00-local-shim.sql
+
+      - name: Load the schema, helpers and policies
+        run: |
+          $PSQL -f sql/01-schema.sql
+          $PSQL -f sql/02-helpers.sql
+          $PSQL -f sql/03-policies.sql
+
+      - name: Run the assertions as a signed-in user
+        run: $PSQL -f tests/rls-tests.sql
