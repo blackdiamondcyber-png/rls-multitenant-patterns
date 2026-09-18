@@ -9,7 +9,7 @@ declare
   rep1 uuid := '11111111-1111-1111-1111-111111111111';
   rep2 uuid := '22222222-2222-2222-2222-222222222222';
   mgr1 uuid := '33333333-3333-3333-3333-333333333333';
-  acct_r1 uuid; acct_r2 uuid; visible int;
+  acct_r1 uuid; acct_r2 uuid; visible int; touched int;
 begin
   insert into branches (name) values ('North') returning id into b1;
   insert into branches (name) values ('South') returning id into b2;
@@ -41,10 +41,21 @@ begin
     raise exception 'rep should see 2 branch accounts, saw %', visible;
   end if;
 
-  -- Rep One cannot reassign Rep Two's account to themselves.
+  -- USING decides which existing rows you may touch, and a row it filters out
+  -- is not an error. The UPDATE simply matches nothing. This is the quiet half
+  -- of the split and the half people get wrong, because it fails silently in an
+  -- application that does not check the row count.
+  update accounts set is_customer = true where id = acct_r2;
+  get diagnostics touched = row_count;
+  if touched <> 0 then
+    raise exception 'rep updated another rep''s account; USING failed';
+  end if;
+
+  -- WITH CHECK decides what the row may look like afterwards, and that one does
+  -- raise. Rep One may edit their own account but may not hand it to Rep Two.
   begin
-    update accounts set assigned_to = rep1 where id = acct_r2;
-    raise exception 'rep reassigned another rep''s account; WITH CHECK failed';
+    update accounts set assigned_to = rep2 where id = acct_r1;
+    raise exception 'rep gave away their own account; WITH CHECK failed';
   exception when insufficient_privilege then
     null; -- expected
   end;
