@@ -9,7 +9,7 @@ declare
   rep1 uuid := '11111111-1111-1111-1111-111111111111';
   rep2 uuid := '22222222-2222-2222-2222-222222222222';
   mgr1 uuid := '33333333-3333-3333-3333-333333333333';
-  acct_r1 uuid; acct_r2 uuid; visible int; touched int;
+  acct_r1 uuid; acct_r2 uuid; visible int; touched int; reassigned_to uuid;
 begin
   insert into branches (name) values ('North') returning id into b1;
   insert into branches (name) values ('South') returning id into b2;
@@ -62,10 +62,23 @@ begin
 
   -- Rep One can edit their own account.
   update accounts set is_customer = true where id = acct_r1;
+  get diagnostics touched = row_count;
+  if touched <> 1 then
+    raise exception 'rep should have updated their own account, touched %', touched;
+  end if;
 
   -- Manager can reassign within the branch.
   perform set_config('request.jwt.claims', json_build_object('sub', mgr1)::text, true);
   update accounts set assigned_to = rep1 where id = acct_r2;
+  get diagnostics touched = row_count;
+  if touched <> 1 then
+    raise exception 'manager should have reassigned the account, touched %', touched;
+  end if;
+
+  select assigned_to into reassigned_to from accounts where id = acct_r2;
+  if reassigned_to <> rep1 then
+    raise exception 'account should be assigned to rep1, was %', reassigned_to;
+  end if;
 
   raise notice 'all RLS assertions passed';
 end $$;
