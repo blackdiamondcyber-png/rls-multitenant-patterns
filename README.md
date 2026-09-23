@@ -105,6 +105,8 @@ On a plain Postgres 14+, run `sql/00-local-shim.sql` first. It creates those
 Supabase objects and the default grants that go with them, and nothing else, so
 the helper and policy files are the same text in both cases.
 
+The test fixture is small on purpose: two branches, two reps, a manager and three accounts (mine, a teammate's, another branch's). A policy is a predicate, so what it has to prove is each role against each kind of row, not volume. The read test counts the rows a rep can see, and the update tests count the rows each update touched, so a policy that silently blocks or silently allows a row fails the run.
+
 The test file raises an exception on the first failed assertion. CI runs the
 shim and then this sequence against `postgres:16` on every push.
 
