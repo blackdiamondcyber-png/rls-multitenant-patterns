@@ -50,7 +50,9 @@ themselves. The row would fail the check on its way in.
 | `sql/01-schema.sql` | Tables: profiles, branches, accounts, activity |
 | `sql/02-helpers.sql` | `current_branch()` and `current_role()` lookups |
 | `sql/03-policies.sql` | The policies themselves, one per role per operation |
+| `sql/04-import.sql` | `bulk_import`, locked to the service role only |
 | `tests/rls-tests.sql` | Assertions that prove each policy does what it claims |
+| `tests/import-tests.sql` | Assertions that the bulk_import grant is where it should be |
 
 ## Things I got wrong the first time
 
@@ -70,8 +72,15 @@ executable by the `anon` role, the entire policy set is decorative. Revoke
 execute from `anon` and `authenticated`; leave it to the service role.
 
 ```sql
-REVOKE EXECUTE ON FUNCTION public.bulk_import(jsonb) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.bulk_import(jsonb) FROM PUBLIC, anon, authenticated;
 ```
+
+Postgres grants EXECUTE on every new function to PUBLIC by default, and both
+`anon` and `authenticated` inherit PUBLIC, so revoking from those two roles
+alone does nothing: the function is still reachable through the inherited
+grant. `tests/import-tests.sql` proves both halves of that, the closed grant on
+`bulk_import` and the still-open one on a throwaway function where only the
+named roles were revoked.
 
 **Test the policies, not the app.**
 The tests in `tests/` set a role and a user id, then assert on what a query
@@ -87,7 +96,9 @@ On Supabase, which already provides the `auth` schema, `auth.uid()` and the
 psql "$DATABASE_URL" -f sql/01-schema.sql
 psql "$DATABASE_URL" -f sql/02-helpers.sql
 psql "$DATABASE_URL" -f sql/03-policies.sql
+psql "$DATABASE_URL" -f sql/04-import.sql
 psql "$DATABASE_URL" -f tests/rls-tests.sql
+psql "$DATABASE_URL" -f tests/import-tests.sql
 ```
 
 On a plain Postgres 14+, run `sql/00-local-shim.sql` first. It creates those
