@@ -130,4 +130,4 @@ Give the container a few seconds to accept connections before running the loop.
 
 MIT. Take what is useful.
 
-More of my work: [erik-pearson-portfolio.vercel.app](https://erik-pearson-portfolio.vercel.app). Contact: [LinkedIn](https://www.linkedin.com/in/erikpearson2).
+More of my work: [erik-pearson-portfolio.vercel.app](https://erik-pearson-portfolio.vercel.app), including [a feature taken from a rep's complaint to a deploy in a week](https://erik-pearson-portfolio.vercel.app/case-study/complaint-to-deploy) on the platform this pattern runs. Contact: [LinkedIn](https://www.linkedin.com/in/erikpearson2).
