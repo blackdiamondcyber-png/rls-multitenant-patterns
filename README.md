@@ -83,7 +83,7 @@ does not exercise.
 | File                           | What it holds                                                                                                                                            |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `sql/01-schema.sql`            | Tables: profiles, branches, accounts, activity                                                                                                           |
-| `sql/02-helpers.sql`           | `current_branch()` and `current_role()` lookups                                                                                                          |
+| `sql/02-helpers.sql`           | `current_branch()`, `current_user_role()` and `is_manager_or_admin()`                                                                       |
 | `sql/03-policies.sql`          | The policies themselves, one per role per operation                                                                                                      |
 | `sql/04-import.sql`            | `bulk_import`, locked to the service role only                                                                                                           |
 | `tests/rls-tests.sql`          | Assertions that prove each policy does what it claims                                                                                                    |
