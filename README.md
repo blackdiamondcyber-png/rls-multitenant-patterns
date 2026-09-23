@@ -31,28 +31,64 @@ which client, script, or migration touches the table.
 
 Three roles, three different policy shapes:
 
-| Role | Read | Write |
-|------|------|-------|
-| Rep | All accounts in their branch | Only accounts assigned to them |
-| Manager | All accounts in their branch | All accounts in their branch |
-| Admin | Everything | Everything |
+| Role    | Read                         | Write                          |
+| ------- | ---------------------------- | ------------------------------ |
+| Rep     | All accounts in their branch | Only accounts assigned to them |
+| Manager | All accounts in their branch | All accounts in their branch   |
+| Admin   | Everything                   | Everything                     |
 
 The key move is splitting `USING` from `WITH CHECK`. `USING` decides which
 existing rows you can see and touch. `WITH CHECK` decides what a row is allowed
-to look like *after* you write it. Reps get a permissive `USING` and a strict
+to look like _after_ you write it. Reps get a permissive `USING` and a strict
 `WITH CHECK`, which is what stops a rep from reassigning an account to
 themselves. The row would fail the check on its way in.
 
+The table above is `accounts`. The other three tables with RLS enabled follow
+the same USING/WITH CHECK split, but the shapes are different enough to be
+worth stating exactly rather than in prose, since a matrix is a promise about
+what the SQL enforces and nothing more.
+
+**activity** is insert-only. No policy allows update or delete, for any role.
+
+| Role    | Select                                                                     | Insert                                                                                                  |
+| ------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Rep     | Only their own activity rows                                               | Only their own activity, and only for an account in their branch                                        |
+| Manager | Their own activity, plus every activity row for an account in their branch | Only their own activity, and only for an account in their branch                                        |
+| Admin   | Everything                                                                 | Only their own activity, and only for an account in their branch, `activity_insert` has no admin bypass |
+
+**profiles** has no insert or delete policy either. Every role can only update
+its own row, and the `role` column cannot change through that update.
+
+| Role    | Select                   | Update                             |
+| ------- | ------------------------ | ---------------------------------- |
+| Rep     | Everyone in their branch | Their own row; `role` is immutable |
+| Manager | Everyone in their branch | Their own row; `role` is immutable |
+| Admin   | Everyone                 | Their own row; `role` is immutable |
+
+**branches** flips the usual shape: select is open to every signed-in user
+regardless of branch, and write is admin-only regardless of branch.
+
+| Role    | Select       | Insert / Update / Delete |
+| ------- | ------------ | ------------------------ |
+| Rep     | All branches | Not permitted            |
+| Manager | All branches | Not permitted            |
+| Admin   | All branches | Full access              |
+
+`tests/rls-coverage-tests.sql` asserts all of the above, including the
+role-immutability check on `profiles_update_self` that `tests/rls-tests.sql`
+does not exercise.
+
 ## Files
 
-| File | What it holds |
-|------|---------------|
-| `sql/01-schema.sql` | Tables: profiles, branches, accounts, activity |
-| `sql/02-helpers.sql` | `current_branch()` and `current_role()` lookups |
-| `sql/03-policies.sql` | The policies themselves, one per role per operation |
-| `sql/04-import.sql` | `bulk_import`, locked to the service role only |
-| `tests/rls-tests.sql` | Assertions that prove each policy does what it claims |
-| `tests/import-tests.sql` | Assertions that the bulk_import grant is where it should be |
+| File                           | What it holds                                                                                                                                            |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sql/01-schema.sql`            | Tables: profiles, branches, accounts, activity                                                                                                           |
+| `sql/02-helpers.sql`           | `current_branch()` and `current_role()` lookups                                                                                                          |
+| `sql/03-policies.sql`          | The policies themselves, one per role per operation                                                                                                      |
+| `sql/04-import.sql`            | `bulk_import`, locked to the service role only                                                                                                           |
+| `tests/rls-tests.sql`          | Assertions that prove each policy does what it claims                                                                                                    |
+| `tests/rls-coverage-tests.sql` | Assertions for the policies rls-tests.sql does not reach: profile role immutability, and the visibility/insert rules for activity, profiles and branches |
+| `tests/import-tests.sql`       | Assertions that the bulk_import grant is where it should be                                                                                              |
 
 ## Things I got wrong the first time
 
@@ -98,6 +134,7 @@ psql "$DATABASE_URL" -f sql/02-helpers.sql
 psql "$DATABASE_URL" -f sql/03-policies.sql
 psql "$DATABASE_URL" -f sql/04-import.sql
 psql "$DATABASE_URL" -f tests/rls-tests.sql
+psql "$DATABASE_URL" -f tests/rls-coverage-tests.sql
 psql "$DATABASE_URL" -f tests/import-tests.sql
 ```
 
@@ -121,7 +158,7 @@ Run a throwaway `postgres:16` container and point psql at it:
 
 ```bash
 docker run --rm -d --name rls-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16
-for f in sql/00-local-shim.sql sql/01-schema.sql sql/02-helpers.sql sql/03-policies.sql sql/04-import.sql tests/rls-tests.sql tests/import-tests.sql; do
+for f in sql/00-local-shim.sql sql/01-schema.sql sql/02-helpers.sql sql/03-policies.sql sql/04-import.sql tests/rls-tests.sql tests/rls-coverage-tests.sql tests/import-tests.sql; do
   PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 -h localhost -U postgres -f "$f" || break
 done
 ```

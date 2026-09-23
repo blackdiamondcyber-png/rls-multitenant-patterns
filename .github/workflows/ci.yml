@@ -43,5 +43,8 @@ jobs:
       - name: Run the assertions as a signed-in user
         run: $PSQL -f tests/rls-tests.sql
 
+      - name: Run the additional RLS coverage assertions
+        run: $PSQL -f tests/rls-coverage-tests.sql
+
       - name: Run the import privilege assertions
         run: $PSQL -f tests/import-tests.sql
