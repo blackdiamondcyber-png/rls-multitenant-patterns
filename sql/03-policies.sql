@@ -69,7 +69,7 @@ for select using (
 create policy profiles_update_self on profiles
 for update
 using (id = auth.uid())
-with check (id = auth.uid());
+with check (id = auth.uid() and role = current_user_role());
 
 -- BRANCHES: readable by all signed-in users, writable by admins only.
 create policy branches_select on branches for select using (auth.uid() is not null);
