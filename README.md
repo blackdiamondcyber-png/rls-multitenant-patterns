@@ -7,7 +7,7 @@ database where every field rep should see the whole map but only act on the
 accounts assigned to them, managers should see their branch, and nobody should
 be able to reassign an account to themselves.
 
-I built and shipped a territory platform on this pattern. Roughly 22,000
+I built and shipped a territory platform on this pattern. Roughly 23,000
 account records, three regional offices, ~77 users, one database. This repo is
 the reusable core of that work with the business specifics stripped out.
 
