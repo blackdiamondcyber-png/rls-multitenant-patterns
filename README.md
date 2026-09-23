@@ -113,6 +113,21 @@ One detail worth copying if you write your own: the test switches to the
 level security, so a suite that seeds and asserts as the same role will pass no
 matter what the policies say.
 
+### No Postgres installed?
+
+Run a throwaway `postgres:16` container and point psql at it:
+
+```bash
+docker run --rm -d --name rls-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16
+for f in sql/00-local-shim.sql sql/01-schema.sql sql/02-helpers.sql sql/03-policies.sql sql/04-import.sql tests/rls-tests.sql tests/import-tests.sql; do
+  PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 -h localhost -U postgres -f "$f" || break
+done
+```
+
+Give the container a few seconds to accept connections before running the loop.
+
 ## License
 
 MIT. Take what is useful.
+
+More of my work: [erik-pearson-portfolio.vercel.app](https://erik-pearson-portfolio.vercel.app). Contact: [LinkedIn](https://www.linkedin.com/in/erikpearson2).
